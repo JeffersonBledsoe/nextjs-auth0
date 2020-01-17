@@ -8,6 +8,7 @@ import getSessionFromTokenSet from '../utils/session';
 
 export type CallbackOptions = {
   redirectTo?: string;
+  callbackSuccessHandler?: (req: IncomingMessage, res: ServerResponse) => Promise<void>;
 };
 
 export default function callbackHandler(
@@ -46,11 +47,18 @@ export default function callbackHandler(
     // Create the session.
     await sessionStore.save(req, res, session);
 
-    // Redirect to the homepage.
-    const redirectTo = (options && options.redirectTo) || '/';
-    res.writeHead(302, {
-      Location: redirectTo
-    });
+    if (options && options.callbackSuccessHandler) {
+      await options.callbackSuccessHandler(req, res);
+    }
+
+    // If the caller hasn't already changed the status code,
+    //   redirect to the given location or the homepage if
+    //   location isn't specified.
+    if (res.statusCode === 200 && options && options.redirectTo) {
+      const redirectTo = (options && options.redirectTo) || '/';
+      res.writeHead(302, { Location: redirectTo });
+    }
+
     res.end();
   };
 }
